@@ -55,3 +55,31 @@ test('first attack check reads public data.json without credentials', async () =
     globalThis.fetch = originalFetch;
   }
 });
+
+test('step 2 attack check reports hidden data.json and the still-open api', async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  try {
+    globalThis.fetch = async (url) => {
+      urls.push(String(url));
+      if (String(url).endsWith('/data.json')) return new Response('not found', { status: 404 });
+      return new Response(JSON.stringify({ notes: [{ title: 'a', content: 'b' }] }), { status: 200 });
+    };
+    const results = await runAttackChecks({ ...config, step: 2 });
+    assert.deepEqual(urls, [
+      'https://student-defense.vercel.app/data.json',
+      'https://student-defense.vercel.app/api/notes',
+    ]);
+    assert.equal(results.length, 2);
+    assert.match(results[0].observed, /보이지 않음 \(HTTP 404\)/u);
+    assert.match(results[1].observed, /메모를 돌려줌/u);
+    assert.doesNotMatch(JSON.stringify(results), /"content"|"title"/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('deployment identity follows the configured step after step 1', () => {
+  assert.equal(deploymentIdentity(env, { ...config, step: 2 }).step, 2);
+  assert.throws(() => deploymentIdentity(env, { ...config, step: 0 }));
+});

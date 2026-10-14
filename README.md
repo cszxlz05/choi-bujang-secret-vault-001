@@ -2,6 +2,39 @@
 
 이 저장소는 1단계에서 학생 본인이 GitHub 저장소와 Vercel 배포를 만드는 출발점입니다. 포함된 메모 네 건은 가상 자료입니다. 실제 학생 자료, 토큰, 비밀키를 넣지 마세요.
 
+## 현재 상태 (2단계 저장점)
+
+- 가상 메모는 코드·정적 파일이 아니라 학습용 Supabase 테이블 `public.notes`(id, owner_id, title, content, created_at)에 있습니다. 테이블은 RLS를 켜 두었고 anon·authenticated의 권한을 회수했습니다. `owner_id`는 칸만 있고 `auth.users` 외래키는 없습니다.
+- 화면(`public/index.html`)은 `/api/notes`를 호출합니다. `api/notes.js`는 서버 환경변수 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`만 읽습니다. 키는 브라우저 파일·응답·로그에 넣지 않습니다. 환경변수는 Vercel 프로젝트 설정에서 직접 넣고, 바꾼 뒤에는 재배포해야 합니다.
+- `aleph.config.json`의 `step`은 2입니다. `scripts/build-public.mjs`는 더 이상 `data.json`을 복사하지 않고, 배포의 `/aleph.json`은 계속 만듭니다.
+- 저장소와 정적 파일에서 `data.json`과 `public/data.json`을 삭제했습니다. 메모 본문이 든 시드 SQL은 저장소에 두지 않습니다(`*.local.sql`은 `.gitignore`).
+- `vercel.json`의 headers로 모든 응답에 `X-Content-Type-Options: nosniff`를 붙입니다.
+- 다시 실행하는 방법: `npm run build -- --local`(로컬 정적 확인), `npm run test:r5`, `npm run test:package`. 로컬 실행은 배포나 심판 접수를 증명하지 않습니다.
+
+### 남은 약점 (2단계 기준)
+
+- **`/api/notes`는 인증이 없습니다.** 주소를 아는 누구나 호출해 가상 메모를 읽을 수 있습니다. 3단계 로그인으로 해소할 예정이며, 그 전까지는 가상 메모만 둡니다.
+- **옛 공개 이력은 지워지지 않았습니다.** 이전 공개 커밋과 이전 배포(옛 배포 URL)에는 공개 시절의 메모가 남아 있을 수 있습니다. 최신 파일에서 메모를 제거했을 뿐이므로 과거 노출이 해소되었다고 쓰지 않습니다.
+
+### 최신 파일에 메모가 없는지 확인하는 절차
+
+검색어(`KEYWORD`)는 가상 메모에서 고른 고정 문구를 실행할 때만 입력합니다. 이 문서와 저장소에는 적지 않습니다. 적으면 그 파일이 검색에 걸립니다.
+
+```bash
+# 1) GitHub 최신 파일: 결과가 0건이어야 함
+git grep -nF "$KEYWORD" HEAD
+# 2) 배포된 첫 화면: 0이어야 함
+curl -s https://<배포주소>/ | grep -cF "$KEYWORD"
+# 3) 옛 공개 주소: 404이거나 메모가 없어야 함
+curl -s -o /dev/null -w "%{http_code}\n" https://<배포주소>/data.json
+# 4) 배포 식별 파일: 200이어야 함
+curl -s -o /dev/null -w "%{http_code}\n" https://<배포주소>/aleph.json
+# 5) 보안 헤더: x-content-type-options: nosniff가 보여야 함
+curl -sI https://<배포주소>/ | grep -i x-content-type-options
+```
+
+기록 형식: 검색 결과(최신 파일·배포본)와 공개 API의 남은 약점을 각각 따로 적습니다.
+
 ## 학생이 하는 일: 세 걸음
 
 1. GitHub 계정을 만듭니다.

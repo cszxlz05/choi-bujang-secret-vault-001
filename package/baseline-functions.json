@@ -1,6 +1,11 @@
 {
   "version": 1,
   "starter": "ChoiTimo/aleph-defense-starter",
-  "functions": [],
-  "allowedNew": ["api/ai.js", "api/threat-intel.js"]
+  "functions": [
+    "api/notes.js"
+  ],
+  "allowedNew": [
+    "api/ai.js",
+    "api/threat-intel.js"
+  ]
 }

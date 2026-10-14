@@ -11,7 +11,7 @@ test('패키징 함수 기준표는 시작 틀의 실제 API와 일치한다', a
     .map(name => join('api', name).replaceAll('\\', '/')).sort();
   assert.equal(baseline.version, 1);
   assert.equal(baseline.starter, 'ChoiTimo/aleph-defense-starter');
-  assert.deepEqual(baseline.functions, []);
+  assert.deepEqual(baseline.functions, ['api/notes.js']);
   assert.deepEqual(baseline.allowedNew, ['api/ai.js', 'api/threat-intel.js']);
   assert.deepEqual(actual, [...baseline.functions, ...baseline.allowedNew].sort());
 });
@@ -39,4 +39,31 @@ test('P7 시작 틀 안내는 실제 빌드 조건과 새 배포 시험에 맞�
   assert.match(readme, /Vercel이 제공하는 저장소·커밋·배포 URL 정보/u);
   assert.doesNotMatch(readme, /npm start/u);
   assert.match(selfCheck, /P7-3\.png/u);
+});
+
+test('자료 API는 허용되지 않은 방식과 설정 누락을 키 노출 없이 거부한다', async () => {
+  const { default: handler } = await import('../api/notes.js');
+  const run = (method) => {
+    const headers = new Map();
+    let status;
+    let body;
+    return handler({ method }, {
+      setHeader: (key, value) => headers.set(key.toLowerCase(), value),
+      status: value => { status = value; return { json: value => { body = value; } }; },
+    }).then(() => ({ status, body, headers }));
+  };
+  const saved = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SECRET_KEY };
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SECRET_KEY;
+  try {
+    const post = await run('POST');
+    assert.equal(post.status, 405);
+    assert.equal(post.headers.get('cache-control'), 'no-store');
+    const missing = await run('GET');
+    assert.equal(missing.status, 500);
+    assert.deepEqual(missing.body, { error: 'SERVER_NOT_CONFIGURED' });
+  } finally {
+    if (saved.url !== undefined) process.env.SUPABASE_URL = saved.url;
+    if (saved.key !== undefined) process.env.SUPABASE_SECRET_KEY = saved.key;
+  }
 });
